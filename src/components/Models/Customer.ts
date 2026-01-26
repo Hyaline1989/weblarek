@@ -5,22 +5,20 @@ import { IBuyer, IBuyerValidationErrors, TPayment } from '../../types';
  * Ответственность: хранение и валидация данных покупателя
  */
 export class Customer {
-  private data: Partial<IBuyer> = {};
+  private data: IBuyer;
 
   /**
    * Конструктор класса
    * @param initialData - начальные данные покупателя (опционально)
    */
   constructor(initialData: Partial<IBuyer> = {}) {
-    this.data = { ...initialData };
-  }
-
-  /**
-   * Сохраняет данные покупателя
-   * @param data - данные для сохранения
-   */
-  setData(data: Partial<IBuyer>): void {
-    this.data = { ...this.data, ...data };
+    // Инициализируем все поля с пустыми значениями по умолчанию
+    this.data = {
+      payment: initialData.payment || '',
+      email: initialData.email || '',
+      phone: initialData.phone || '',
+      address: initialData.address || '',
+    } as IBuyer; // Приводим к типу IBuyer, так как все поля гарантированно есть
   }
 
   /**
@@ -56,22 +54,22 @@ export class Customer {
   }
 
   /**
-   * Возвращает все данные покупателя
-   * @returns данные покупателя
+   * Обновляет данные покупателя
+   * @param data - частичные данные для обновления
    */
-  getData(): Partial<IBuyer> {
-    return { ...this.data };
+  updateData(data: Partial<IBuyer>): void {
+    if (data.payment !== undefined) this.data.payment = data.payment;
+    if (data.email !== undefined) this.data.email = data.email;
+    if (data.phone !== undefined) this.data.phone = data.phone;
+    if (data.address !== undefined) this.data.address = data.address;
   }
 
   /**
-   * Проверяет, заполнены ли все обязательные поля
-   * @returns true если все поля заполнены, false если нет
+   * Возвращает все данные покупателя
+   * @returns данные покупателя
    */
-  isComplete(): boolean {
-    return !!(this.data.payment && 
-              this.data.email && 
-              this.data.phone && 
-              this.data.address);
+  getData(): IBuyer {
+    return { ...this.data };
   }
 
   /**
@@ -85,15 +83,15 @@ export class Customer {
       errors.payment = 'Не выбран способ оплаты';
     }
 
-    if (!this.data.email || this.data.email.trim() === '') {
+    if (!this.data.email?.trim()) {
       errors.email = 'Введите email';
     }
 
-    if (!this.data.phone || this.data.phone.trim() === '') {
+    if (!this.data.phone?.trim()) {
       errors.phone = 'Введите телефон';
     }
 
-    if (!this.data.address || this.data.address.trim() === '') {
+    if (!this.data.address?.trim()) {
       errors.address = 'Введите адрес доставки';
     }
 
@@ -112,7 +110,12 @@ export class Customer {
    * Очищает все данные покупателя
    */
   clear(): void {
-    this.data = {};
+    this.data = {
+      payment: '',
+      email: '',
+      phone: '',
+      address: '',
+    } as IBuyer;
   }
 
   /**
@@ -121,6 +124,7 @@ export class Customer {
    * @returns true если поле заполнено, false если нет
    */
   isFieldFilled<K extends keyof IBuyer>(field: K): boolean {
-    return !!(this.data[field] && this.data[field]!.toString().trim() !== '');
+    const value = this.data[field];
+    return typeof value === 'string' ? value.trim() !== '' : !!value;
   }
 }

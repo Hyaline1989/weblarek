@@ -1,4 +1,4 @@
-import { Api } from '../base/Api';
+import { IApi } from '../../types';
 import { IProductsResponse, IOrderData, IOrderResponse } from '../../types';
 
 /**
@@ -6,15 +6,14 @@ import { IProductsResponse, IOrderData, IOrderResponse } from '../../types';
  * Ответственность: получение товаров с сервера и отправка заказов
  */
 export class ShopApi {
-  private api: Api;
+  private api: IApi;
 
   /**
    * Конструктор класса
-   * @param baseUrl - базовый URL API
-   * @param options - опции для запросов (опционально)
+   * @param api - экземпляр класса, реализующего интерфейс IApi
    */
-  constructor(baseUrl: string, options: RequestInit = {}) {
-    this.api = new Api(baseUrl, options);
+  constructor(api: IApi) {
+    this.api = api;
   }
 
   /**

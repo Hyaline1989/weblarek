@@ -3,14 +3,14 @@ import { ProductList } from './components/Models/ProductList';
 import { Basket } from './components/Models/Basket';
 import { Customer } from './components/Models/Customer';
 import { ShopApi } from './components/Api/ShopApi';
+import { Api } from './components/base/Api';
 import { API_URL } from './utils/constants';
 import { apiProducts } from './utils/data';
 
 /**
- * Точка входа приложения
- * Здесь создаются экземпляры классов и тестируется их работа
+ * Тестирование моделей данных
  */
-async function main() {
+function testModels() {
   console.log('=== Тестирование моделей данных ===');
 
   // 1. Тестирование ProductList
@@ -67,53 +67,81 @@ async function main() {
   console.log('Валидны ли данные?', !customer.hasErrors());
   console.log('Ошибки валидации:', customer.validate());
   
+  // Тестирование заполнения части данных
+  console.log('\nТестирование частичного заполнения:');
   customer.setPayment('card');
   customer.setEmail('test@example.com');
+  console.log('Данные после заполнения части полей:', customer.getData());
+  console.log('Ошибки валидации (частичное заполнение):', customer.validate());
+  console.log('Есть ошибки?', customer.hasErrors());
+  
+  // Заполняем оставшиеся поля
   customer.setPhone('+79991234567');
   customer.setAddress('ул. Примерная, д. 1');
   
-  console.log('Данные покупателя (после заполнения):', customer.getData());
+  console.log('\nДанные покупателя (после полного заполнения):', customer.getData());
   console.log('Валидны ли данные?', !customer.hasErrors());
   console.log('Ошибки валидации:', customer.validate());
-  console.log('Все поля заполнены?', customer.isComplete());
   
   // Тестирование частичного обновления
-  customer.setData({ phone: '+79998765432' });
+  customer.updateData({ phone: '+79998765432' });
   console.log('Данные после частичного обновления:', customer.getData());
 
-  // 4. Тестирование ShopApi
-  console.log('\n4. Тестирование ShopApi:');
-  const shopApi = new ShopApi(API_URL);
+  console.log('\n=== Тестирование моделей завершено ===');
+
+  return { productList, basket, customer };
+}
+
+/**
+ * Тестирование API (отдельная функция для асинхронных операций)
+ */
+async function testApi() {
+  console.log('\n=== Тестирование API ===');
   
   try {
+    // Создаём экземпляр API
+    const apiInstance = new Api(API_URL);
+    const shopApi = new ShopApi(apiInstance);
+    
     const productsResponse = await shopApi.getProducts();
     console.log('Получены товары с сервера:', productsResponse);
     
-    // Сохраняем товары в ProductList
-    productList.setItems(productsResponse.items);
-    console.log('Товары сохранены в ProductList, количество:', productList.getItems().length);
-    
-    // Тестирование заказа (комментируем, чтобы не отправлять тестовые заказы)
-    /*
-    const orderData: IOrderData = {
-      payment: 'card',
-      email: 'test@example.com',
-      phone: '+79991234567',
-      address: 'ул. Примерная, д. 1',
-      total: basket.getTotalPrice(),
-      items: basket.getItemIds()
-    };
-    
-    const orderResponse = await shopApi.sendOrder(orderData);
-    console.log('Заказ отправлен, ответ сервера:', orderResponse);
-    */
-    
+    return productsResponse;
   } catch (error) {
     console.error('Ошибка при работе с API:', error);
+    throw error; // Пробрасываем ошибку дальше
   }
+}
 
-  console.log('\n=== Тестирование завершено ===');
+/**
+ * Основная функция инициализации приложения
+ */
+async function initApp() {
+  console.log('=== Инициализация приложения ===');
+  
+  // Тестируем модели (синхронно)
+  const models = testModels();
+  
+  // Тестируем API (асинхронно)
+  try {
+    const productsResponse = await testApi();
+    
+    // Сохраняем товары в ProductList
+    models.productList.setItems(productsResponse.items);
+    console.log('Товары сохранены в ProductList, количество:', models.productList.getItems().length);
+    
+  } catch (error) {
+    console.error('Ошибка при инициализации приложения:', error);
+    // В реальном приложении здесь можно показать сообщение пользователю
+    // или использовать fallback-данные
+    console.log('Используем локальные данные для тестирования');
+  }
+  
+  console.log('\n=== Инициализация завершена ===');
+  
+  // Возвращаем экземпляры для дальнейшего использования
+  return models;
 }
 
 // Запуск приложения
-main().catch(console.error);
+initApp();
