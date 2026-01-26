@@ -98,3 +98,199 @@ Presenter - презентер содержит основную логику п
 `emit<T extends object>(event: string, data?: T): void` - инициализация события. При вызове события в метод передается название события и объект с данными, который будет использован как аргумент для вызова обработчика.  
 `trigger<T extends object>(event: string, context?: Partial<T>): (data: T) => void` - возвращает функцию, при вызове которой инициализируется требуемое в параметрах событие с передачей в него данных из второго параметра.
 
+## Данные
+
+### Интерфейсы данных
+
+#### IProduct (Товар)
+```typescript
+interface IProduct {
+  id: string;
+  description: string;
+  image: string;
+  title: string;
+  category: string;
+  price: number | null;
+}
+Описание: Интерфейс описывает структуру товара в каталоге магазина.
+
+IBuyer (Покупатель)
+typescript
+interface IBuyer {
+  payment: TPayment;
+  email: string;
+  phone: string;
+  address: string;
+}
+Описание: Интерфейс описывает данные покупателя, необходимые для оформления заказа.
+
+IBuyerValidationErrors (Ошибки валидации покупателя)
+typescript
+interface IBuyerValidationErrors {
+  payment?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+Описание: Интерфейс для хранения ошибок валидации полей покупателя.
+
+IOrderData (Данные заказа)
+typescript
+interface IOrderData {
+  payment: TPayment;
+  email: string;
+  phone: string;
+  address: string;
+  total: number;
+  items: string[];
+}
+Описание: Интерфейс описывает данные, отправляемые на сервер при оформлении заказа.
+
+IProductsResponse (Ответ сервера с товарами)
+typescript
+interface IProductsResponse {
+  total: number;
+  items: IProduct[];
+}
+Описание: Интерфейс описывает ответ сервера при запросе списка товаров.
+
+IOrderResponse (Ответ сервера на заказ)
+typescript
+interface IOrderResponse {
+  id: string;
+  total: number;
+}
+Описание: Интерфейс описывает ответ сервера при успешном оформлении заказа.
+
+TPayment (Способ оплаты)
+typescript
+type TPayment = 'card' | 'cash';
+Описание: Тип для способа оплаты, может принимать значения "card" или "cash".
+
+Модели данных
+Класс ProductList (Каталог товаров)
+Назначение: Хранение каталога товаров и управление выбранным товаром для детального просмотра.
+
+Конструктор:
+
+typescript
+constructor(initialItems: IProduct[] = [])
+initialItems (опционально) - начальный массив товаров для инициализации каталога.
+
+Поля:
+
+private items: IProduct[] - массив всех товаров в каталоге.
+
+private selectedItem: IProduct | null - товар, выбранный для детального просмотра.
+
+Методы:
+
+setItems(items: IProduct[]): void - сохраняет массив товаров.
+
+getItems(): IProduct[] - возвращает массив всех товаров.
+
+getItemById(id: string): IProduct | undefined - находит товар по ID.
+
+setSelectedItem(item: IProduct): void - сохраняет товар для детального просмотра.
+
+setSelectedItemById(id: string): boolean - сохраняет товар для детального просмотра по ID.
+
+getSelectedItem(): IProduct | null - возвращает выбранный товар.
+
+clearSelectedItem(): void - очищает выбранный товар.
+
+isAvailable(item: IProduct): boolean - проверяет доступность товара для покупки.
+
+Класс Basket (Корзина)
+Назначение: Хранение и управление товарами в корзине покупок.
+
+Конструктор:
+
+typescript
+constructor(initialItems: IProduct[] = [])
+initialItems (опционально) - начальный массив товаров в корзине.
+
+Поля:
+
+private items: IProduct[] - массив товаров в корзине.
+
+Методы:
+
+getItems(): IProduct[] - возвращает массив товаров в корзине.
+
+addItem(item: IProduct): boolean - добавляет товар в корзину.
+
+removeItem(id: string): boolean - удаляет товар из корзины по ID.
+
+contains(id: string): boolean - проверяет наличие товара в корзине.
+
+clear(): void - очищает корзину.
+
+getTotalPrice(): number - возвращает общую стоимость товаров.
+
+getItemsCount(): number - возвращает количество товаров.
+
+isEmpty(): boolean - проверяет, пуста ли корзина.
+
+getItemIds(): string[] - возвращает массив ID товаров.
+
+Класс Customer (Покупатель)
+Назначение: Хранение и валидация данных покупателя.
+
+Конструктор:
+
+typescript
+constructor(initialData: Partial<IBuyer> = {})
+initialData (опционально) - начальные данные покупателя.
+
+Поля:
+
+private data: Partial<IBuyer> - объект с данными покупателя.
+
+Методы:
+
+setData(data: Partial<IBuyer>): void - сохраняет данные покупателя.
+
+setPayment(payment: TPayment): void - устанавливает способ оплаты.
+
+setEmail(email: string): void - устанавливает email.
+
+setPhone(phone: string): void - устанавливает телефон.
+
+setAddress(address: string): void - устанавливает адрес.
+
+getData(): Partial<IBuyer> - возвращает все данные покупателя.
+
+isComplete(): boolean - проверяет заполненность всех полей.
+
+validate(): IBuyerValidationErrors - валидирует данные покупателя.
+
+hasErrors(): boolean - проверяет наличие ошибок валидации.
+
+clear(): void - очищает все данные.
+
+isFieldFilled(field: keyof IBuyer): boolean - проверяет заполненность конкретного поля.
+
+Слой коммуникации
+Класс ShopApi
+Назначение: Обеспечение взаимодействия приложения с сервером через API.
+
+Конструктор:
+
+typescript
+constructor(baseUrl: string, options: RequestInit = {})
+baseUrl - базовый URL API сервера.
+
+options (опционально) - дополнительные опции для запросов.
+
+Поля:
+
+private api: Api - экземпляр базового класса Api для выполнения HTTP-запросов.
+
+Методы:
+
+async getProducts(): Promise<IProductsResponse> - получает список товаров с сервера.
+
+async sendOrder(orderData: IOrderData): Promise<IOrderResponse> - отправляет заказ на сервер.
+
+https://github.com/Hyaline1989/weblarek.git
