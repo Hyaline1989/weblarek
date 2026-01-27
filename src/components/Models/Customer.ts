@@ -22,38 +22,6 @@ export class Customer {
   }
 
   /**
-   * Устанавливает способ оплаты
-   * @param payment - способ оплаты
-   */
-  setPayment(payment: TPayment): void {
-    this.data.payment = payment;
-  }
-
-  /**
-   * Устанавливает email
-   * @param email - email покупателя
-   */
-  setEmail(email: string): void {
-    this.data.email = email;
-  }
-
-  /**
-   * Устанавливает телефон
-   * @param phone - телефон покупателя
-   */
-  setPhone(phone: string): void {
-    this.data.phone = phone;
-  }
-
-  /**
-   * Устанавливает адрес
-   * @param address - адрес доставки
-   */
-  setAddress(address: string): void {
-    this.data.address = address;
-  }
-
-  /**
    * Обновляет данные покупателя
    * @param data - частичные данные для обновления
    */
@@ -116,15 +84,5 @@ export class Customer {
       phone: '',
       address: '',
     } as IBuyer;
-  }
-
-  /**
-   * Проверяет, заполнено ли конкретное поле
-   * @param field - поле для проверки
-   * @returns true если поле заполнено, false если нет
-   */
-  isFieldFilled<K extends keyof IBuyer>(field: K): boolean {
-    const value = this.data[field];
-    return typeof value === 'string' ? value.trim() !== '' : !!value;
   }
 }
