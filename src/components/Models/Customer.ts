@@ -1,17 +1,22 @@
-import { IBuyer, IBuyerValidationErrors, TPayment } from '../../types'; 
+import { IBuyer, TBuyerErrors } from '../../types'; 
+import { EventEmitter } from '../base/Events';
 
 /** 
  * Класс для хранения данных покупателя 
  * Ответственность: хранение и валидация данных покупателя 
  */ 
 export class Customer { 
-  private data: IBuyer; 
+  private data: IBuyer;
+  private events: EventEmitter;
 
   /** 
    * Конструктор класса 
+   * @param events - брокер событий
    * @param initialData - начальные данные покупателя (опционально) 
    */ 
-  constructor(initialData: Partial<IBuyer> = {}) { 
+  constructor(events: EventEmitter, initialData: Partial<IBuyer> = {}) { 
+    this.events = events;
+    
     // Инициализируем все поля с пустыми значениями по умолчанию 
     this.data = { 
       payment: initialData.payment || '', 
@@ -26,10 +31,31 @@ export class Customer {
    * @param data - частичные данные для обновления 
    */ 
   updateData(data: Partial<IBuyer>): void { 
-    if (data.payment !== undefined) this.data.payment = data.payment; 
-    if (data.email !== undefined) this.data.email = data.email; 
-    if (data.phone !== undefined) this.data.phone = data.phone; 
-    if (data.address !== undefined) this.data.address = data.address; 
+    let changed = false;
+    
+    if (data.payment !== undefined && this.data.payment !== data.payment) {
+      this.data.payment = data.payment;
+      changed = true;
+    }
+    
+    if (data.email !== undefined && this.data.email !== data.email) {
+      this.data.email = data.email;
+      changed = true;
+    }
+    
+    if (data.phone !== undefined && this.data.phone !== data.phone) {
+      this.data.phone = data.phone;
+      changed = true;
+    }
+    
+    if (data.address !== undefined && this.data.address !== data.address) {
+      this.data.address = data.address;
+      changed = true;
+    }
+    
+    if (changed) {
+      this.events.emit('customer:changed', { data: this.data });
+    }
   } 
 
   /** 
@@ -44,8 +70,8 @@ export class Customer {
    * Валидирует данные покупателя 
    * @returns объект с ошибками валидации (пустой объект если ошибок нет) 
    */ 
-  validate(): IBuyerValidationErrors { 
-    const errors: IBuyerValidationErrors = {}; 
+  validate(): TBuyerErrors { 
+    const errors: TBuyerErrors = {}; 
 
     if (!this.data.payment) { 
       errors.payment = 'Не выбран способ оплаты'; 
@@ -75,6 +101,8 @@ export class Customer {
       email: '', 
       phone: '', 
       address: '', 
-    } as IBuyer; 
+    } as IBuyer;
+    
+    this.events.emit('customer:changed', { data: this.data });
   } 
-} 
+}

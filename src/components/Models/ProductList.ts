@@ -1,4 +1,5 @@
 import { IProduct } from '../../types';
+import { EventEmitter } from '../base/Events';
 
 /**
  * Класс для хранения каталога товаров
@@ -7,12 +8,15 @@ import { IProduct } from '../../types';
 export class ProductList {
   private items: IProduct[] = [];
   private selectedItem: IProduct | null = null;
+  private events: EventEmitter;
 
   /**
    * Конструктор класса
+   * @param events - брокер событий
    * @param initialItems - начальный массив товаров (опционально)
    */
-  constructor(initialItems: IProduct[] = []) {
+  constructor(events: EventEmitter, initialItems: IProduct[] = []) {
+    this.events = events;
     this.items = initialItems;
   }
 
@@ -22,6 +26,7 @@ export class ProductList {
    */
   setItems(items: IProduct[]): void {
     this.items = items;
+    this.events.emit('items:changed', { items: this.items });
   }
 
   /**
@@ -47,6 +52,7 @@ export class ProductList {
    */
   setSelectedItem(item: IProduct): void {
     this.selectedItem = item;
+    this.events.emit('product:select', { item: this.selectedItem });
   }
 
   /**
@@ -57,7 +63,7 @@ export class ProductList {
   setSelectedItemById(id: string): boolean {
     const item = this.getItemById(id);
     if (item) {
-      this.selectedItem = item;
+      this.setSelectedItem(item);
       return true;
     }
     return false;
@@ -76,6 +82,7 @@ export class ProductList {
    */
   clearSelectedItem(): void {
     this.selectedItem = null;
+    this.events.emit('product:deselect');
   }
 
   /**

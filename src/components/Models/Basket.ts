@@ -1,4 +1,5 @@
 import { IProduct } from '../../types';
+import { EventEmitter } from '../base/Events';
 
 /**
  * Класс для хранения корзины товаров
@@ -6,12 +7,15 @@ import { IProduct } from '../../types';
  */
 export class Basket {
   private items: IProduct[] = [];
+  private events: EventEmitter;
 
   /**
    * Конструктор класса
+   * @param events - брокер событий
    * @param initialItems - начальный массив товаров в корзине (опционально)
    */
-  constructor(initialItems: IProduct[] = []) {
+  constructor(events: EventEmitter, initialItems: IProduct[] = []) {
+    this.events = events;
     this.items = initialItems;
   }
 
@@ -33,6 +37,7 @@ export class Basket {
       return false;
     }
     this.items.push(item);
+    this.events.emit('basket:changed', { items: this.items });
     return true;
   }
 
@@ -45,6 +50,7 @@ export class Basket {
     const index = this.items.findIndex(item => item.id === id);
     if (index !== -1) {
       this.items.splice(index, 1);
+      this.events.emit('basket:changed', { items: this.items });
       return true;
     }
     return false;
@@ -64,6 +70,7 @@ export class Basket {
    */
   clear(): void {
     this.items = [];
+    this.events.emit('basket:changed', { items: this.items });
   }
 
   /**
