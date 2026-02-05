@@ -31,9 +31,12 @@ export class Presenter {
   private modal: Modal;
   private header: Header;
   private basketView: BasketView;
-  private orderForm: OrderForm;
-  private contactsForm: ContactsForm;
-  private successView: SuccessView;
+  
+  // Компоненты для модальных окон (создаются один раз)
+  private previewCard: PreviewCard | null = null;
+  private orderForm: OrderForm | null = null;
+  private contactsForm: ContactsForm | null = null;
+  private successView: SuccessView | null = null;
 
   // Шаблоны
   private catalogCardTemplate: HTMLTemplateElement;
@@ -100,12 +103,10 @@ export class Presenter {
     this.events.on('items:changed', () => this.updateCatalog());
     this.events.on('basket:changed', () => this.updateBasket());
     this.events.on('product:select', () => this.openProductModal());
+    this.events.on('customer:changed', () => this.handleCustomerChange());
 
     // События от View
-    this.events.on('card:select', (element: HTMLElement) => this.handleCardSelect(element));
-    this.events.on('card:action', (data: { id: string }) => this.handleCardAction(data.id));
     this.events.on('basket:open', () => this.openBasketModal());
-    this.events.on('basket:remove', (data: { id: string }) => this.handleBasketRemove(data.id));
     this.events.on('order:open', () => this.openOrderModal());
     this.events.on('order:submit', () => this.handleOrderSubmit());
     this.events.on('order.payment:change', (data: { payment: string }) => this.handlePaymentChange(data.payment));
@@ -118,17 +119,69 @@ export class Presenter {
   }
 
   /**
-   * Обновление каталога товаров
+   * Обработка изменения данных покупателя
+   */
+  private handleCustomerChange(): void {
+    const errors = this.customer.validate();
+    
+    // Обновляем текущую форму, если она открыта
+    if (this.orderForm && this.modal.container.classList.contains('modal_active')) {
+      const customerData = this.customer.getData();
+      
+      // Фильтруем ошибки только для формы заказа
+      const orderErrors = Object.entries(errors)
+        .filter(([key]) => key === 'payment' || key === 'address')
+        .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+      
+      const orderValid = Object.keys(orderErrors).length === 0;
+      const errorMessages = Object.values(orderErrors).join(', ');
+      
+      this.orderForm.render({
+        payment: customerData.payment,
+        address: customerData.address,
+        valid: orderValid,
+        errors: errorMessages
+      });
+    }
+    
+    if (this.contactsForm && this.modal.container.classList.contains('modal_active')) {
+      const customerData = this.customer.getData();
+      
+      // Фильтруем ошибки только для формы контактов
+      const contactErrors = Object.entries(errors)
+        .filter(([key]) => key === 'email' || key === 'phone')
+        .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+      
+      const contactValid = Object.keys(contactErrors).length === 0;
+      const errorMessages = Object.values(contactErrors).join(', ');
+      
+      this.contactsForm.render({
+        email: customerData.email,
+        phone: customerData.phone,
+        valid: contactValid,
+        errors: errorMessages
+      });
+    }
+  }
+
+  /**
+   * Обновление каталога товаров (используем map вместо forEach)
    */
   private updateCatalog() {
     const products = this.productList.getItems();
-    const cardElements: HTMLElement[] = [];
-
-    products.forEach(product => {
+    
+    const cardElements = products.map(product => {
       const cardElement = this.catalogCardTemplate.content.cloneNode(true) as HTMLElement;
-      const card = new CatalogCard(cardElement.querySelector('.card'), this.events);
+      
+      const card = new CatalogCard(
+        cardElement.querySelector('.card'), 
+        () => {
+          this.productList.setSelectedItemById(product.id);
+        }
+      );
+      
       card.render(product);
-      cardElements.push(card.render(product));
+      return card.container;
     });
 
     this.gallery.render({ items: cardElements });
@@ -142,20 +195,26 @@ export class Presenter {
   }
 
   /**
-   * Обновление отображения корзины
+   * Обновление отображения корзины (используем map вместо forEach)
    */
   private updateBasket() {
     this.updateBasketCounter();
     
     if (this.basketView) {
       const basketItems = this.basket.getItems();
-      const basketCardElements: HTMLElement[] = [];
       
-      basketItems.forEach((item, index) => {
+      const basketCardElements = basketItems.map((item, index) => {
         const cardElement = this.basketCardTemplate.content.cloneNode(true) as HTMLElement;
-        const card = new BasketCard(cardElement.querySelector('.basket__item'), this.events);
+        
+        const card = new BasketCard(
+          cardElement.querySelector('.basket__item'),
+          () => {
+            this.basket.removeItem(item.id);
+          }
+        );
+        
         card.render({ item, index: index + 1 });
-        basketCardElements.push(card.render({ item, index: index + 1 }));
+        return card.container;
       });
       
       this.basketView.render({
@@ -166,45 +225,35 @@ export class Presenter {
   }
 
   /**
-   * Обработка выбора карточки товара
-   */
-  private handleCardSelect(element: HTMLElement) {
-    const productId = element.dataset.id;
-    this.productList.setSelectedItemById(productId);
-  }
-
-  /**
    * Открытие модального окна с деталями товара
    */
   private openProductModal() {
     const product = this.productList.getSelectedItem();
     if (!product) return;
 
-    const cardElement = this.previewCardTemplate.content.cloneNode(true) as HTMLElement;
-    const card = new PreviewCard(cardElement.querySelector('.card'), this.events);
-    
-    const inBasket = this.basket.contains(product.id);
-    card.render({ ...product, inBasket });
-    
-    this.modal.render({ content: card.render({ ...product, inBasket }) });
-    this.modal.open();
-  }
-
-  /**
-   * Обработка действия с карточкой (добавить/удалить)
-   */
-  private handleCardAction(productId: string) {
-    const product = this.productList.getItemById(productId);
-    if (!product) return;
-
-    if (this.basket.contains(productId)) {
-      this.basket.removeItem(productId);
-    } else {
-      this.basket.addItem(product);
+    // Создаем карточку предпросмотра один раз, если еще не создана
+    if (!this.previewCard) {
+      const cardElement = this.previewCardTemplate.content.cloneNode(true) as HTMLElement;
+      this.previewCard = new PreviewCard(
+        cardElement.querySelector('.card'),
+        () => {
+          if (this.basket.contains(product.id)) {
+            this.basket.removeItem(product.id);
+          } else {
+            this.basket.addItem(product);
+          }
+          
+          // Закрываем модальное окно после действия
+          setTimeout(() => this.modal.close(), 300);
+        }
+      );
     }
     
-    // Закрываем модальное окно после действия
-    setTimeout(() => this.modal.close(), 300);
+    const inBasket = this.basket.contains(product.id);
+    this.previewCard.render({ ...product, inBasket });
+    
+    this.modal.render({ content: this.previewCard.container });
+    this.modal.open();
   }
 
   /**
@@ -215,13 +264,19 @@ export class Presenter {
     this.basketView = new BasketView(basketElement.querySelector('.basket'), this.events);
     
     const basketItems = this.basket.getItems();
-    const basketCardElements: HTMLElement[] = [];
     
-    basketItems.forEach((item, index) => {
+    const basketCardElements = basketItems.map((item, index) => {
       const cardElement = this.basketCardTemplate.content.cloneNode(true) as HTMLElement;
-      const card = new BasketCard(cardElement.querySelector('.basket__item'), this.events);
+      
+      const card = new BasketCard(
+        cardElement.querySelector('.basket__item'),
+        () => {
+          this.basket.removeItem(item.id);
+        }
+      );
+      
       card.render({ item, index: index + 1 });
-      basketCardElements.push(card.render({ item, index: index + 1 }));
+      return card.container;
     });
     
     this.basketView.render({
@@ -229,41 +284,7 @@ export class Presenter {
       total: this.basket.getTotalPrice()
     });
     
-    this.modal.render({ content: this.basketView.render({
-      items: basketCardElements,
-      total: this.basket.getTotalPrice()
-    }) });
-    this.modal.open();
-  }
-
-  /**
-   * Обработка удаления товара из корзины
-   */
-  private handleBasketRemove(productId: string) {
-    this.basket.removeItem(productId);
-  }
-
-  /**
-   * Открытие модального окна оформления заказа
-   */
-  private openOrderModal() {
-    const orderElement = this.orderTemplate.content.cloneNode(true) as HTMLElement;
-    this.orderForm = new OrderForm(orderElement.querySelector('.form'), this.events);
-    
-    const customerData = this.customer.getData();
-    this.orderForm.render({
-      payment: customerData.payment,
-      address: customerData.address,
-      valid: false,
-      errors: ''
-    });
-    
-    this.modal.render({ content: this.orderForm.render({
-      payment: customerData.payment,
-      address: customerData.address,
-      valid: false,
-      errors: ''
-    }) });
+    this.modal.render({ content: this.basketView.container });
     this.modal.open();
   }
 
@@ -285,38 +306,39 @@ export class Presenter {
    * Обработка отправки формы заказа
    */
   private handleOrderSubmit() {
-    const errors = this.customer.validate();
-    
-    if (Object.keys(errors).length === 0) {
-      this.openContactsModal();
-    } else {
-      // Показываем ошибки валидации
-      const errorMessages = Object.values(errors).join(', ');
-      this.orderForm.render({ errors: errorMessages, valid: false });
-    }
+    // Если кнопка активна (валидна), просто переходим к следующему окну
+    this.openContactsModal();
   }
 
   /**
-   * Открытие модального окна с контактами
+   * Открытие модального окна оформления заказа
    */
-  private openContactsModal() {
-    const contactsElement = this.contactsTemplate.content.cloneNode(true) as HTMLElement;
-    this.contactsForm = new ContactsForm(contactsElement.querySelector('.form'), this.events);
+  private openOrderModal() {
+    // Создаем форму заказа один раз, если еще не создана
+    if (!this.orderForm) {
+      const orderElement = this.orderTemplate.content.cloneNode(true) as HTMLTemplateElement;
+      this.orderForm = new OrderForm(orderElement.querySelector('.form'), this.events);
+    }
     
     const customerData = this.customer.getData();
-    this.contactsForm.render({
-      email: customerData.email,
-      phone: customerData.phone,
-      valid: false,
-      errors: ''
+    const errors = this.customer.validate();
+    
+    // Фильтруем ошибки только для формы заказа
+    const orderErrors = Object.entries(errors)
+      .filter(([key]) => key === 'payment' || key === 'address')
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+    
+    const isValid = Object.keys(orderErrors).length === 0;
+    const errorMessages = Object.values(orderErrors).join(', ');
+    
+    this.orderForm.render({
+      payment: customerData.payment,
+      address: customerData.address,
+      valid: isValid,
+      errors: errorMessages
     });
     
-    this.modal.render({ content: this.contactsForm.render({
-      email: customerData.email,
-      phone: customerData.phone,
-      valid: false,
-      errors: ''
-    }) });
+    this.modal.render({ content: this.orderForm.container });
     this.modal.open();
   }
 
@@ -335,11 +357,44 @@ export class Presenter {
   }
 
   /**
+   * Открытие модального окна с контактами
+   */
+  private openContactsModal() {
+    // Создаем форму контактов один раз, если еще не создана
+    if (!this.contactsForm) {
+      const contactsElement = this.contactsTemplate.content.cloneNode(true) as HTMLTemplateElement;
+      this.contactsForm = new ContactsForm(contactsElement.querySelector('.form'), this.events);
+    }
+    
+    const customerData = this.customer.getData();
+    const errors = this.customer.validate();
+    
+    // Фильтруем ошибки только для формы контактов
+    const contactErrors = Object.entries(errors)
+      .filter(([key]) => key === 'email' || key === 'phone')
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+    
+    const isValid = Object.keys(contactErrors).length === 0;
+    const errorMessages = Object.values(contactErrors).join(', ');
+    
+    this.contactsForm.render({
+      email: customerData.email,
+      phone: customerData.phone,
+      valid: isValid,
+      errors: errorMessages
+    });
+    
+    this.modal.render({ content: this.contactsForm.container });
+    this.modal.open();
+  }
+
+  /**
    * Обработка отправки формы контактов
    */
   private async handleContactsSubmit() {
     const errors = this.customer.validate();
     
+    // Проверяем все ошибки
     if (Object.keys(errors).length === 0) {
       try {
         // Формируем данные для отправки
@@ -373,11 +428,14 @@ export class Presenter {
    * Показ окна успешного оформления заказа
    */
   private showSuccessModal(total: number) {
-    const successElement = this.successTemplate.content.cloneNode(true) as HTMLElement;
-    this.successView = new SuccessView(successElement.querySelector('.order-success'), this.events);
+    // Создаем окно успеха один раз, если еще не создано
+    if (!this.successView) {
+      const successElement = this.successTemplate.content.cloneNode(true) as HTMLElement;
+      this.successView = new SuccessView(successElement.querySelector('.order-success'), this.events);
+    }
     
     this.successView.render({ total });
-    this.modal.render({ content: this.successView.render({ total }) });
+    this.modal.render({ content: this.successView.container });
   }
 
   /**

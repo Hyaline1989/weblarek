@@ -1,6 +1,5 @@
-import { Component } from '../base/Component';
+import { Card } from './Card';
 import { IProduct } from '../../types';
-import { EventEmitter } from '../base/Events';
 
 /**
  * Интерфейс для данных карточки корзины
@@ -13,26 +12,22 @@ interface IBasketCardData {
 /**
  * Карточка товара в корзине
  */
-export class BasketCard extends Component<IBasketCardData> {
-  private events: EventEmitter;
+export class BasketCard extends Card<IBasketCardData> {
+  private onDeleteClick: () => void;
   private _index: HTMLElement;
-  private _title: HTMLElement;
-  private _price: HTMLElement;
   private _deleteButton: HTMLButtonElement;
+  private _productId: string;
 
-  constructor(container: HTMLElement, events: EventEmitter) {
+  constructor(container: HTMLElement, onDeleteClick: () => void) {
     super(container);
-    this.events = events;
+    this.onDeleteClick = onDeleteClick;
     
     this._index = this.container.querySelector('.basket__item-index');
-    this._title = this.container.querySelector('.card__title');
-    this._price = this.container.querySelector('.card__price');
     this._deleteButton = this.container.querySelector('.basket__item-delete');
     
-    // Обработчик удаления товара
+    // Обработчик удаления товара через колбэк
     this._deleteButton.addEventListener('click', () => {
-      const productId = this.container.dataset.id;
-      this.events.emit('basket:remove', { id: productId });
+      this.onDeleteClick();
     });
   }
 
@@ -45,34 +40,11 @@ export class BasketCard extends Component<IBasketCardData> {
     }
   }
 
-  /**
-   * Устанавливает заголовок товара
-   */
-  set title(value: string) {
-    if (this._title) {
-      this._title.textContent = value;
-    }
-  }
-
-  /**
-   * Устанавливает цену товара
-   */
-  set price(value: number) {
-    if (this._price) {
-      this._price.textContent = `${value} синапсов`;
-    }
-  }
-
-  /**
-   * Устанавливает ID товара
-   */
-  set id(value: string) {
-    this.container.dataset.id = value;
-  }
-
   render(data: IBasketCardData): HTMLElement {
-    this.id = data.item.id;
+    this._productId = data.item.id; // Сохраняем ID в поле класса
     this.index = data.index;
+    
+    // Используем сеттеры из базового класса Card
     this.title = data.item.title;
     this.price = data.item.price || 0;
     

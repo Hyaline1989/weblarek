@@ -1,34 +1,29 @@
 import { Card } from './Card';
 import { IProduct } from '../../types';
-import { EventEmitter } from '../base/Events';
 
 /**
  * Карточка товара в каталоге
  */
 export class CatalogCard extends Card<IProduct> {
-  private events: EventEmitter;
+  private onClick: () => void;
 
-  constructor(container: HTMLElement, events: EventEmitter) {
+  constructor(container: HTMLElement, onClick: () => void) {
     super(container);
-    this.events = events;
+    this.onClick = onClick;
     
-    // Устанавливаем обработчик клика
-    this.container.addEventListener('click', () => {
-      this.events.emit('card:select', this.container);
+    // Устанавливаем обработчик клика через колбэк
+    this.container.addEventListener('click', (event: MouseEvent) => {
+      // Предотвращаем клик на заблокированных карточках
+      if (!this.container.classList.contains('card_disabled')) {
+        this.onClick();
+      }
     });
-  }
-
-  /**
-   * Устанавливает данные товара
-   */
-  set id(value: string) {
-    this.container.dataset.id = value;
   }
 
   render(data: IProduct): HTMLElement {
     super.render(data);
     
-    this.id = data.id;
+    // Устанавливаем свойства через сеттеры из базового класса
     this.title = data.title;
     this.image = data.image;
     this.category = data.category;

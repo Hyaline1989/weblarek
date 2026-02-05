@@ -25,54 +25,30 @@ export class ContactsForm extends Form<IContactsFormData> {
     this._emailInput = this.container.querySelector('input[name="email"]');
     this._phoneInput = this.container.querySelector('input[name="phone"]');
     
-    // Обработчики изменения полей
+    // Обработчики изменения полей - только передаем данные в модель
     this._emailInput.addEventListener('input', () => {
-      this.validateForm();
+      // Только передаем данные в модель, валидация будет в модели
       this.events.emit('contacts.email:change', { email: this._emailInput.value });
     });
     
     this._phoneInput.addEventListener('input', () => {
-      this.validateForm();
+      // Только передаем данные в модель, валидация будет в модели
       this.events.emit('contacts.phone:change', { phone: this._phoneInput.value });
     });
   }
 
   /**
-   * Валидирует форму
-   */
-  private validateForm() {
-    const emailValid = this._emailInput.value.trim() !== '';
-    const phoneValid = this._phoneInput.value.trim() !== '';
-    const isValid = emailValid && phoneValid;
-    
-    this.valid = isValid;
-    return isValid;
-  }
-
-  /**
-   * Устанавливает email
+   * Устанавливает email (только отображение)
    */
   set email(value: string) {
     this._emailInput.value = value;
-    this.validateForm();
   }
 
   /**
-   * Устанавливает телефон
+   * Устанавливает телефон (только отображение)
    */
   set phone(value: string) {
     this._phoneInput.value = value;
-    this.validateForm();
-  }
-
-  /**
-   * Возвращает данные формы
-   */
-  get data(): Partial<IBuyer> {
-    return {
-      email: this._emailInput.value,
-      phone: this._phoneInput.value
-    };
   }
 
   /**
@@ -86,8 +62,11 @@ export class ContactsForm extends Form<IContactsFormData> {
   }
 
   render(data: IContactsFormData): HTMLElement {
-    if (data.email) this.email = data.email;
-    if (data.phone) this.phone = data.phone;
+    // Только устанавливаем значения для отображения
+    if (data.email !== undefined) this.email = data.email;
+    if (data.phone !== undefined) this.phone = data.phone;
+    
+    // Валидация пришла из модели через Presenter
     this.valid = data.valid;
     this.errors = data.errors;
     
